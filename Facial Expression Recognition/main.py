@@ -95,6 +95,8 @@ class Model(torch.nn.Module):
         x = self.incep2(x)
 
         x = x.view(x.size(0), -1)  # 88 * 12 * 12 = 12672
+
+        # input: (bitch_size, 12672)  output: (bitch_size, 7)
         x = self.fc(x)
         return x
 
