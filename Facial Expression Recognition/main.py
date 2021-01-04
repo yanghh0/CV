@@ -71,7 +71,7 @@ class Model(torch.nn.Module):
         self.incep2 = Inception(inChannels=20)  # 与conv2 中的 20 对应
 
         self.pooling = torch.nn.MaxPool2d(kernel_size=2)
-        self.fc = torch.nn.Linear(12672, 7)
+        self.fc = torch.nn.Linear(in_features=12672, out_features=7)
 
     def forward(self, x):
         # input: (bitch_size, 1, 48, 48)  output: (bitch_size, 30, 48, 48)
