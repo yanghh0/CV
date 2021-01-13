@@ -34,7 +34,7 @@ class MyMnistDataset(data.Dataset):
 
     def __getitem__(self, index):
         if self.labels[index] == 0:    # 将数字 0 的图像和 8 叠加形成新的图像，该新图像的类别为 0
-            self.images[index] += self.eight
+            self.images[index].data += self.eight.data
             # cv2.imshow("img", self.images[index][0].numpy())
             # cv2.waitKey()
         return self.images[index], self.labels[index]
@@ -59,7 +59,7 @@ class MyMnistDataset(data.Dataset):
         """
         for i in range(self.len):
             if self.labels[i] == 8:
-                return self.images[i].detach()
+                return self.images[i]
         return None
 
 class LeNet(nn.Module):
