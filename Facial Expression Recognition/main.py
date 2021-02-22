@@ -22,7 +22,7 @@ class FaceDataset(data.Dataset):
     def __getitem__(self, index):
         img = cv2.imread(os.path.join('dataset', self.filePath, '{}.jpg'.format(index + self.start)))
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)           # 转为单通道灰度图
-        grayImgNormalized = grayImg.reshape(1, 48, 48) / 255.0    # 转为标准正态分布
+        grayImgNormalized = grayImg.reshape(1, 48, 48) / 255.0
         xData = torch.from_numpy(grayImgNormalized)
         xData = xData.type('torch.FloatTensor')
         return xData, self.yDatas[index]
