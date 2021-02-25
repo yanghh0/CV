@@ -42,7 +42,7 @@ VOC_CLASSES = (
     'tvmonitor')
 
 # 需要将数据集 VOCdevkit 文件夹放到 SSD 的同级目录
-VOC_ROOT = osp.join("..", "VOCdevkit")
+VOC_ROOT = osp.join("..", "..", "VOCdevkit")
 
 
 class VOCAnnotationTransform(object):
@@ -127,7 +127,7 @@ class VOCDetection(data.Dataset):
     """
 
     def __init__(self, root,
-                 image_sets=[('2007', 'trainval'),],
+                 image_sets=(('2007', 'trainval'),),
                  transform=None, target_transform=VOCAnnotationTransform(),
                  dataset_name='VOC0712'):
         self.root = root
@@ -174,7 +174,7 @@ class VOCDetection(data.Dataset):
         # return torch.from_numpy(img), target, height, width
 
     def pull_image(self, index):
-        '''Returns the original image object at index in PIL form
+        """Returns the original image object at index in PIL form
 
         Note: not using self.__getitem__(), as any transformations passed in
         could mess up this functionality.
@@ -183,12 +183,12 @@ class VOCDetection(data.Dataset):
             index (int): index of img to show
         Return:
             PIL img
-        '''
+        """
         img_id = self.ids[index]
         return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
 
     def pull_anno(self, index):
-        '''Returns the original annotation of image at index
+        """Returns the original annotation of image at index
 
         Note: not using self.__getitem__(), as any transformations passed in
         could mess up this functionality.
@@ -198,14 +198,14 @@ class VOCDetection(data.Dataset):
         Return:
             list:  [img_id, [(label, bbox coords),...]]
                 eg: ('001718', [('dog', (96, 13, 438, 332))])
-        '''
+        """
         img_id = self.ids[index]
         anno = ET.parse(self._annopath % img_id).getroot()
         gt = self.target_transform(anno, 1, 1)
         return img_id[1], gt
 
     def pull_tensor(self, index):
-        '''Returns the original image at an index in tensor form
+        """Returns the original image at an index in tensor form
 
         Note: not using self.__getitem__(), as any transformations passed in
         could mess up this functionality.
@@ -214,6 +214,6 @@ class VOCDetection(data.Dataset):
             index (int): index of img to show
         Return:
             tensorized version of img, squeezed
-        '''
+        """
         # unsqueeze_ 和 np.expand_dims 功能相同
         return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
