@@ -100,15 +100,12 @@ class VOCDetection(data.Dataset):
     input is image, target is annotation
 
     Arguments:
-        root (string): filepath to VOCdevkit folder.
+        root (string): filepath to VOCdevkit folder，即 VOC_ROOT
         image_set (string): imageset to use (eg. 'train', 'val', 'test')
-        transform (callable, optional): transformation to perform on the
-            input image
-        target_transform (callable, optional): transformation to perform on the
-            target `annotation`
+        transform (callable, optional): transformation to perform on the input image
+        target_transform (callable, optional): transformation to perform on the target `annotation`
             (eg: take in caption string, return tensor of word indices)
-        dataset_name (string, optional): which dataset to load
-            (default: 'VOC2007')
+        dataset_name (string, optional): which dataset to load(default: 'VOC2007')
     """
 
     def __init__(self, root,
