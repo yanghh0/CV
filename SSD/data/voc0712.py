@@ -41,10 +41,6 @@ VOC_CLASSES = (
     'train', 
     'tvmonitor')
 
-# 需要将数据集 VOCdevkit 文件夹放到 SSD 的同级目录
-VOC_ROOT = osp.join("..", "..", "VOCdevkit")
-
-
 class VOCAnnotationTransform(object):
     """Transforms a VOC annotation into a Tensor of bbox coords and label index
     Initilized with a dictionary lookup of classnames to indexes
