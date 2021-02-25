@@ -42,7 +42,8 @@ VOC_CLASSES = (
     'tvmonitor')
 
 # note: if you used our download scripts, this should be right
-VOC_ROOT = osp.join(HOME, "data/VOCdevkit/")
+# 需要将数据集 VOCdevkit 文件夹放到 SSD 的同级目录
+VOC_ROOT = osp.join("..", "VOCdevkit")
 
 
 class VOCAnnotationTransform(object):
