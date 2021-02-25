@@ -142,7 +142,7 @@ class VOCDetection(data.Dataset):
         for (year, name) in image_sets:
             rootpath = osp.join(self.root, 'VOC' + year)
             for line in open(osp.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
-                self.ids.append((rootpath, line.strip()))
+                self.ids.append((rootpath, line.strip()))  # ((),(),(),(),...)
 
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
@@ -165,11 +165,12 @@ class VOCDetection(data.Dataset):
         if self.transform is not None:
             target = np.array(target)
             img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
-            # bgr to rgb
+            # 第三个维度数据顺序 bgr to rgb
             img = img[:, :, (2, 1, 0)]
             # img = img.transpose(2, 0, 1)
+            # 下面这句就是把 boxes 和 labels 又搞成 [[xmin, ymin, xmax, ymax, label_ind], ... ] 格式
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
-        return torch.from_numpy(img).permute(2, 0, 1), target, height, width
+        return torch.from_numpy(img).permute(2, 0, 1), target, height, width  # hwc -> chw
         # return torch.from_numpy(img), target, height, width
 
     def pull_image(self, index):
@@ -214,4 +215,5 @@ class VOCDetection(data.Dataset):
         Return:
             tensorized version of img, squeezed
         '''
+        # unsqueeze_ 和 np.expand_dims 功能相同
         return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
