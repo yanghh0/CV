@@ -74,7 +74,7 @@ class SubtractMeans(object):
 
     def __call__(self, image, boxes=None, labels=None):
         image = image.astype(np.float32)
-        image -= self.mean
+        image -= self.mean  # 广播
         return image.astype(np.float32), boxes, labels
 
 
@@ -101,6 +101,8 @@ class ToPercentCoords(object):
 
 
 class Resize(object):
+    """缩放图像大小
+    """
     def __init__(self, size=300):
         self.size = size
 
@@ -233,12 +235,20 @@ class RandomSampleCrop(object):
             img (Image): the cropped image
             boxes (Tensor): the adjusted bounding boxes in pt form
             labels (Tensor): the class labels for each bbox
+
+    图片随机裁剪在数据增强中有重要作用，这个算法的运行流程大致如下：
+        1. 随机选取裁剪框的大小；
+        2. 根据大小确定裁剪框的坐标；
+        3. 分析裁剪框和图片内部bounding box的交并比；
+        4. 筛选掉交并比不符合要求的裁剪框；
+        5. 裁剪图片，并重新更新bounding box的位置坐标；
     """
     def __init__(self):
         self.sample_options = (
             # using entire original input image
             None,
             # sample a patch s.t. MIN jaccard w/ obj in .1,.3,.4,.7,.9
+            # 最小的IOU，最大的IOU
             (0.1, None),
             (0.3, None),
             (0.7, None),
@@ -269,6 +279,7 @@ class RandomSampleCrop(object):
                 h = random.uniform(0.3 * height, height)
 
                 # aspect ratio constraint b/t .5 & 2
+                # 判断长宽比在一定范围
                 if h / w < 0.5 or h / w > 2:
                     continue
 
@@ -276,7 +287,8 @@ class RandomSampleCrop(object):
                 top = random.uniform(height - h)
 
                 # convert to integer rect x1,y1,x2,y2
-                rect = np.array([int(left), int(top), int(left+w), int(top+h)])
+                # 切割的矩形大小，形状是[x1,y1,x2,y2]
+                rect = np.array([int(left), int(top), int(left + w), int(top + h)])
 
                 # calculate IoU (jaccard overlap) b/t the cropped and gt boxes
                 overlap = jaccard_numpy(boxes, rect)
@@ -356,6 +368,8 @@ class Expand(object):
 
 
 class RandomMirror(object):
+    """将图片进行左右翻转
+    """
     def __call__(self, image, boxes, classes):
         _, width, _ = image.shape
         if random.randint(2):
@@ -432,11 +446,11 @@ class SSDAugmentation(object):
             ToAbsoluteCoords(),          # 将标签中的边框从比例坐标变换为真实坐标
             PhotometricDistort(),        # 进行亮度、对比度、色相与饱和度的随机调整，然后随机调换通道  
             Expand(self.mean),           # 随机扩展图像大小
-            RandomSampleCrop(),
-            RandomMirror(),
-            ToPercentCoords(),
-            Resize(self.size),
-            SubtractMeans(self.mean)
+            RandomSampleCrop(),          # 随机裁剪图像
+            RandomMirror(),              # 随机镜像图片
+            ToPercentCoords(),           # 从真实坐标变回归一化坐标
+            Resize(self.size),           # 缩放到固定的300*300大小
+            SubtractMeans(self.mean)     # 最后去均值
         ])
 
     def __call__(self, img, boxes, labels):
