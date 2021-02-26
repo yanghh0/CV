@@ -326,6 +326,8 @@ class RandomSampleCrop(object):
 
 
 class Expand(object):
+    """设置一个大于原图尺寸的size，填充指定的像素值mean，然后把原图随机放入这个图片中，实现原图的扩充。
+    """
     def __init__(self, mean):
         self.mean = mean
 
@@ -335,15 +337,12 @@ class Expand(object):
 
         height, width, depth = image.shape
         ratio = random.uniform(1, 4)
-        left = random.uniform(0, width*ratio - width)
-        top = random.uniform(0, height*ratio - height)
+        left = random.uniform(0, width * ratio - width)
+        top = random.uniform(0, height * ratio - height)
 
-        expand_image = np.zeros(
-            (int(height*ratio), int(width*ratio), depth),
-            dtype=image.dtype)
+        expand_image = np.zeros((int(height * ratio), int(width * ratio), depth), dtype=image.dtype)
         expand_image[:, :, :] = self.mean
-        expand_image[int(top):int(top + height),
-                     int(left):int(left + width)] = image
+        expand_image[int(top):int(top + height), int(left):int(left + width)] = image
         image = expand_image
 
         boxes = boxes.copy()
@@ -429,7 +428,7 @@ class SSDAugmentation(object):
             ConvertFromInts(),           # 首先将图像像素值从整型变成浮点型
             ToAbsoluteCoords(),          # 将标签中的边框从比例坐标变换为真实坐标
             PhotometricDistort(),        # 进行亮度、对比度、色相与饱和度的随机调整，然后随机调换通道  
-            Expand(self.mean),
+            Expand(self.mean),           # 随机扩展图像大小，图像仅靠右下方
             RandomSampleCrop(),
             RandomMirror(),
             ToPercentCoords(),
