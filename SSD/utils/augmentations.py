@@ -43,7 +43,6 @@ class Compose(object):
         >>>     transforms.ToTensor(),
         >>> ])
     """
-
     def __init__(self, transforms):
         self.transforms = transforms
 
@@ -106,12 +105,13 @@ class Resize(object):
         self.size = size
 
     def __call__(self, image, boxes=None, labels=None):
-        image = cv2.resize(image, (self.size,
-                                 self.size))
+        image = cv2.resize(image, (self.size, self.size))
         return image, boxes, labels
 
 
 class RandomSaturation(object):
+    """随机调整图片饱和度
+    """
     def __init__(self, lower=0.5, upper=1.5):
         self.lower = lower
         self.upper = upper
@@ -120,18 +120,22 @@ class RandomSaturation(object):
 
     def __call__(self, image, boxes=None, labels=None):
         if random.randint(2):
+            # HSV是另一种颜色空间，其中H代表色相，S代表饱和度，V代表Value
             image[:, :, 1] *= random.uniform(self.lower, self.upper)
 
         return image, boxes, labels
 
 
 class RandomHue(object):
+    """调整图像色相
+    """
     def __init__(self, delta=18.0):
         assert delta >= 0.0 and delta <= 360.0
         self.delta = delta
 
     def __call__(self, image, boxes=None, labels=None):
         if random.randint(2):
+            # HSV是另一种颜色空间，其中H代表色相，S代表饱和度，V代表Value
             image[:, :, 0] += random.uniform(-self.delta, self.delta)
             image[:, :, 0][image[:, :, 0] > 360.0] -= 360.0
             image[:, :, 0][image[:, :, 0] < 0.0] += 360.0
@@ -139,13 +143,17 @@ class RandomHue(object):
 
 
 class RandomLightingNoise(object):
+    """随机交换三个通道顺序
+    """
     def __init__(self):
         self.perms = ((0, 1, 2), (0, 2, 1),
                       (1, 0, 2), (1, 2, 0),
                       (2, 0, 1), (2, 1, 0))
 
     def __call__(self, image, boxes=None, labels=None):
+        # random.randint(2)返回小于2的整数，即0或者1
         if random.randint(2):
+            # 随机选取一个通道的交换顺序，交换图像三个通道的值
             swap = self.perms[random.randint(len(self.perms))]
             shuffle = SwapChannels(swap)  # shuffle channels
             image = shuffle(image)
@@ -153,6 +161,8 @@ class RandomLightingNoise(object):
 
 
 class ConvertColor(object):
+    """颜色空间转换
+    """
     def __init__(self, current='BGR', transform='HSV'):
         self.transform = transform
         self.current = current
@@ -168,6 +178,8 @@ class ConvertColor(object):
 
 
 class RandomContrast(object):
+    """调整图像对比度
+    """
     def __init__(self, lower=0.5, upper=1.5):
         self.lower = lower
         self.upper = upper
@@ -183,13 +195,17 @@ class RandomContrast(object):
 
 
 class RandomBrightness(object):
+    """调整图像亮度
+    """
     def __init__(self, delta=32):
         assert delta >= 0.0
         assert delta <= 255.0
         self.delta = delta
 
     def __call__(self, image, boxes=None, labels=None):
+        # random.randint(2)返回小于2的整数，即0或者1
         if random.randint(2):
+            # 随机选取一个位于[-32, 32)区间的实数，相加到图像上
             delta = random.uniform(-self.delta, self.delta)
             image += delta
         return image, boxes, labels
@@ -374,20 +390,28 @@ class SwapChannels(object):
 
 
 class PhotometricDistort(object):
+    """图片亮度，对比度和色调变化的方式合并为一个类
+    HSV 颜色空间：
+        HSV是另一种颜色空间，其中H代表色相，S代表饱和度，V代表Value
+        H:色调 0°对应红色， 120°对应绿色， 240°对应蓝色---对应不同的颜色 取值范围0~360度
+        S:饱和度，比若说:红色的纯度，越白纯度越低，取值范围0~1
+        V:亮度，比如你穿了一件红色衣服 在白天亮度较高(0~255之间)傍晚或者黄昏就比较低(0~255之间)，
+          即多少的光照上去反射出来被看见，取值范围0~255。
+    """
     def __init__(self):
         self.pd = [
             RandomContrast(),
-            ConvertColor(transform='HSV'),
+            ConvertColor(transform='HSV'),   # BGR to HSV，
             RandomSaturation(),
             RandomHue(),
-            ConvertColor(current='HSV', transform='BGR'),
+            ConvertColor(current='HSV', transform='BGR'),   # HSV to BGR
             RandomContrast()
         ]
         self.rand_brightness = RandomBrightness()
         self.rand_light_noise = RandomLightingNoise()
 
     def __call__(self, image, boxes, labels):
-        im = image.copy()
+        im = image.copy()  # 使用图像的副本来做数据增强操作
         im, boxes, labels = self.rand_brightness(im, boxes, labels)
         if random.randint(2):
             distort = Compose(self.pd[:-1])
@@ -402,9 +426,9 @@ class SSDAugmentation(object):
         self.mean = mean
         self.size = size
         self.augment = Compose([
-            ConvertFromInts(),
-            ToAbsoluteCoords(),
-            PhotometricDistort(),
+            ConvertFromInts(),           # 首先将图像像素值从整型变成浮点型
+            ToAbsoluteCoords(),          # 将标签中的边框从比例坐标变换为真实坐标
+            PhotometricDistort(),        # 进行亮度、对比度、色相与饱和度的随机调整，然后随机调换通道  
             Expand(self.mean),
             RandomSampleCrop(),
             RandomMirror(),
