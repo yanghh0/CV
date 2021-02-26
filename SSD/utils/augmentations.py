@@ -335,16 +335,19 @@ class Expand(object):
         if random.randint(2):
             return image, boxes, labels
 
+        # 求取原图像在新图像中的左上角坐标值
         height, width, depth = image.shape
         ratio = random.uniform(1, 4)
         left = random.uniform(0, width * ratio - width)
         top = random.uniform(0, height * ratio - height)
 
+        # 建立新的图像，并依次赋值
         expand_image = np.zeros((int(height * ratio), int(width * ratio), depth), dtype=image.dtype)
         expand_image[:, :, :] = self.mean
         expand_image[int(top):int(top + height), int(left):int(left + width)] = image
         image = expand_image
 
+        # 利用广播机制对边框也进行相应变换
         boxes = boxes.copy()
         boxes[:, :2] += (int(left), int(top))
         boxes[:, 2:] += (int(left), int(top))
