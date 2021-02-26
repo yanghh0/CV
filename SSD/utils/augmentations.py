@@ -431,7 +431,7 @@ class SSDAugmentation(object):
             ConvertFromInts(),           # 首先将图像像素值从整型变成浮点型
             ToAbsoluteCoords(),          # 将标签中的边框从比例坐标变换为真实坐标
             PhotometricDistort(),        # 进行亮度、对比度、色相与饱和度的随机调整，然后随机调换通道  
-            Expand(self.mean),           # 随机扩展图像大小，图像仅靠右下方
+            Expand(self.mean),           # 随机扩展图像大小
             RandomSampleCrop(),
             RandomMirror(),
             ToPercentCoords(),
