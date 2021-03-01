@@ -208,7 +208,7 @@ class RandomBrightness(object):
         if random.randint(2):
             # 随机选取一个位于[-32, 32)区间的实数，相加到图像上
             delta = random.uniform(-self.delta, self.delta)
-            image += delta
+            image = image + delta
         return image, boxes, labels
 
 
