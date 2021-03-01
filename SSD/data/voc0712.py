@@ -84,6 +84,7 @@ class VOCAnnotationTransform(object):
         # 遍历 xml 文件中所有的 object
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
+            # 是否保留难以分类的图片
             if not self.keep_difficult and difficult:
                 continue
             name = obj.find('name').text.lower().strip()
