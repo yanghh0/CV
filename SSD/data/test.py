@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils import data
 from data.voc0712 import VOCDetection, VOC_CLASSES
 
-VOC_ROOT = osp.join("..", "..", "VOCdevkit")
+VOC_ROOT = osp.join("..", "VOCdevkit")
 
 data_set = VOCDetection(VOC_ROOT)
 data_loader = data.DataLoader(data_set, batch_size=1, num_workers=0, shuffle=True)
