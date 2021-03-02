@@ -10,8 +10,8 @@ def point_form(boxes):
     Return:
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
-    return torch.cat((boxes[:, :2] - boxes[:, 2:]/2,     # xmin, ymin
-                     boxes[:, :2] + boxes[:, 2:]/2), 1)  # xmax, ymax
+    return torch.cat((boxes[:, :2] - boxes[:, 2:] / 2,     # xmin, ymin
+                     boxes[:, :2] + boxes[:, 2:] / 2), 1)  # xmax, ymax
 
 
 def center_size(boxes):
@@ -22,8 +22,8 @@ def center_size(boxes):
     Return:
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
-    return torch.cat((boxes[:, 2:] + boxes[:, :2])/2,  # cx, cy
-                     boxes[:, 2:] - boxes[:, :2], 1)  # w, h
+    return torch.cat((boxes[:, 2:] + boxes[:, :2]) / 2,  # cx, cy
+                     boxes[:, 2:] - boxes[:, :2], 1)     # w, h
 
 
 def intersect(box_a, box_b):
@@ -36,15 +36,20 @@ def intersect(box_a, box_b):
       box_b: (tensor) bounding boxes, Shape: [B,4].
     Return:
       (tensor) intersection area, Shape: [A,B].
+
+    后面我们代入得参数: box_a 包含所有的gt box，box_b包含所有的先验框
+    一般情况下，先验框个数远大于真实框个数，即 A << B
     """
     A = box_a.size(0)
     B = box_b.size(0)
+
+    # 每个真实框都要与所有的先验框计算 IOU
     max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2),
                        box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
     min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2),
                        box_b[:, :2].unsqueeze(0).expand(A, B, 2))
     inter = torch.clamp((max_xy - min_xy), min=0)
-    return inter[:, :, 0] * inter[:, :, 1]
+    return inter[:, :, 0] * inter[:, :, 1]  # 交集的面积
 
 
 def jaccard(box_a, box_b):
@@ -60,14 +65,19 @@ def jaccard(box_a, box_b):
         jaccard overlap: (tensor) Shape: [box_a.size(0), box_b.size(0)]
     """
     inter = intersect(box_a, box_b)
-    area_a = ((box_a[:, 2]-box_a[:, 0]) *
-              (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
-    area_b = ((box_b[:, 2]-box_b[:, 0]) *
-              (box_b[:, 3]-box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
+
+    # 计算每个真实框的面积
+    area_a = ((box_a[:, 2] - box_a[:, 0]) *
+              (box_a[:, 3] - box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
+    # 计算每个先验框的面积
+    area_b = ((box_b[:, 2] - box_b[:, 0]) *
+              (box_b[:, 3] - box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
-    return inter / union  # [A,B]
+    return inter / union  # [A,B], 返回交并比
 
 
+# 输入包括IoU阈值、真实边框位置、预选框、方差、真实边框类别
+# 输出为每一个预选框的类别，保存在conf_t中，对应的真实边框位置，保存在loc_t中
 def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
@@ -85,27 +95,48 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     Return:
         The matched indices corresponding to 1)location and 2)confidence preds.
     """
-    # jaccard index
+    
+
+    # 注意这里truth是最大最小值形式的, 而prior是中心点与长宽形式
+    # 求取每个真实框与每个预选框的IoU
     overlaps = jaccard(
         truths,
-        point_form(priors)
+        point_form(priors)  # (cx, cy ,w, h) ---> (xmin, ymin, xmax, ymax)
     )
-    # (Bipartite Matching)
+
+    # (Bipartite Matching) 双向匹配
     # [1,num_objects] best prior for each ground truth
+    # 这里就表示得到和gt最匹配的priorbox(anchor)
+    # 输出形如: [[0.2500], [1.0000], [0.2500]]  [[0], [3], [5]]
     best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+
     # [1,num_priors] best ground truth for each prior
+    # 在零维度上取最大值 表示： 找到和每个anchor最匹配的gtbox
+    # 输出形如: [[0.2500, 0.4444, 0.2000, 1.0000, 0.2500, 0.2500]] [[0, 1, 1, 1, 2, 2]]
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
-    best_truth_idx.squeeze_(0)
-    best_truth_overlap.squeeze_(0)
-    best_prior_idx.squeeze_(1)
-    best_prior_overlap.squeeze_(1)
+
+    # 下面几行就是去掉冗余维度
+    best_prior_idx.squeeze_(1)        # 与gtbox最匹配的anchor索引值
+    best_prior_overlap.squeeze_(1)    # 与gtbox最匹配的anchor交并比
+    best_truth_idx.squeeze_(0)        # 与anchor最匹配的gtbox索引值
+    best_truth_overlap.squeeze_(0)    # 与anchor最匹配的gtbox交并比
+
+    # 以gt_box为准指定好与它自己最匹配的default box, 用于训练。
+    # 将每一个truth对应的最佳box的overlap设置为2
     best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
     # TODO refactor: index  best_prior_idx with long tensor
     # ensure every gt matches with its prior of max overlap
+
     for j in range(best_prior_idx.size(0)):
         best_truth_idx[best_prior_idx[j]] = j
+
+    # 每一个prior对应的真实框的位置
     matches = truths[best_truth_idx]          # Shape: [num_priors,4]
+
+    # 每一个prior对应的类别
     conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
+
+    # 如果一个PriorBox对应的最大IoU小于0.5，则视为负样本
     conf[best_truth_overlap < threshold] = 0  # label as background
     loc = encode(matches, priors, variances)
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
@@ -126,7 +157,8 @@ def encode(matched, priors, variances):
     """
 
     # dist b/t match center and prior's center
-    g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+    # matches:[xmin,ymin, xmax, ymax] priors: [cx, cy, w, h]
+    g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
     # encode variance
     g_cxcy /= (variances[0] * priors[:, 2:])
     # match wh / prior wh
@@ -166,7 +198,7 @@ def log_sum_exp(x):
         x (Variable(tensor)): conf_preds from conf layers
     """
     x_max = x.data.max()
-    return torch.log(torch.sum(torch.exp(x-x_max), 1, keepdim=True)) + x_max
+    return torch.log(torch.sum(torch.exp(x - x_max), 1, keepdim=True)) + x_max
 
 
 # Original author: Francisco Massa:
@@ -184,6 +216,7 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         The indices of the kept boxes with respect to num_priors.
     """
 
+    # 创建一个新的Tensor，该Tensor的type和device都和原有Tensor一致，且无内容。
     keep = scores.new(scores.size(0)).zero_().long()
     if boxes.numel() == 0:
         return keep
@@ -212,7 +245,9 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         if idx.size(0) == 1:
             break
         idx = idx[:-1]  # remove kept element from view
+
         # load bboxes of next highest vals
+        # topK 剩下的boxes的信息存储在xx，yy中
         torch.index_select(x1, 0, idx, out=xx1)
         torch.index_select(y1, 0, idx, out=yy1)
         torch.index_select(x2, 0, idx, out=xx2)
@@ -229,11 +264,11 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         # check sizes of xx1 and xx2.. after each iteration
         w = torch.clamp(w, min=0.0)
         h = torch.clamp(h, min=0.0)
-        inter = w*h
+        inter = w * h
         # IoU = i / (area(a) + area(b) - i)
         rem_areas = torch.index_select(area, 0, idx)  # load remaining areas)
         union = (rem_areas - inter) + area[i]
-        IoU = inter/union  # store result in iou
+        IoU = inter / union  # store result in iou
         # keep only elements with an IoU <= overlap
         idx = idx[IoU.le(overlap)]
     return keep, count
