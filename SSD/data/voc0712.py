@@ -59,7 +59,6 @@ class VOCAnnotationTransform(object):
             class_to_ind: 类别的索引字典。
             keep_difficult: 是否保留difficult=1的物体。
     """
-
     def __init__(self, class_to_ind=None, keep_difficult=False):
         self.class_to_ind = class_to_ind or dict(zip(VOC_CLASSES, range(len(VOC_CLASSES))))
         self.keep_difficult = keep_difficult
@@ -70,18 +69,8 @@ class VOCAnnotationTransform(object):
             target (annotation) : the target annotation to be made usable will be an ET.Element
         Returns:
             a list containing lists of bounding boxes  [bbox coords, class name]
-
-        解释：
-        参数列表：
-            target: xml被读取的一个ET.Element对象
-            width: 图片宽度
-            height: 图片高度
-        返回值：
-            一个list，list中的每个元素是[bbox coords, class name]
-
         """
         res = []
-        # 遍历 xml 文件中所有的 object
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
             # 是否保留难以分类的图片
@@ -94,16 +83,15 @@ class VOCAnnotationTransform(object):
             bndbox = []
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text) - 1
-                # scale height or width，即归一化，x/w，y/h
+                # scale height or width，因为图像会进行缩放，所以需要归一化，x/w，y/h
                 cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
                 bndbox.append(cur_pt)
             # 提取类别名称对应的 index
             label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
-            res += [bndbox]  # [xmin, ymin, xmax, ymax, label_ind]
-            # img_id = target.find('filename').text[:-4]
+            res += [bndbox]  # [xmin, ymin, xmax, ymax, label_idx]
 
-        return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
+        return res  # [[xmin, ymin, xmax, ymax, label_idx], ... ]
 
 
 class VOCDetection(data.Dataset):
@@ -118,14 +106,13 @@ class VOCDetection(data.Dataset):
         target_transform (callable, optional): transformation to perform on the target `annotation`
             (eg: take in caption string, return tensor of word indices)
         dataset_name (string, optional): which dataset to load (default: 'VOC2007')
-
-    解释：
-        根据VOCAnnotationTransform()和VOC数据集的文件结构，读取图片，bbox和lable，构建VOC数据集。
     """
 
-    def __init__(self, root,
+    def __init__(self, 
+                 root,
                  image_sets=(('2007', 'trainval'),),
-                 transform=None, target_transform=VOCAnnotationTransform(),
+                 transform=None, 
+                 target_transform=VOCAnnotationTransform(),
                  dataset_name='VOC0712'):
         self.root = root
         self.image_set = image_sets
@@ -139,7 +126,8 @@ class VOCDetection(data.Dataset):
         for (year, name) in image_sets:
             rootpath = osp.join(self.root, 'VOC' + year)
             for line in open(osp.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
-                self.ids.append((rootpath, line.strip()))  # ((),(),(),(),...)
+                # [('..\\VOCdevkit\\VOC2007', '000005'), ('..\\VOCdevkit\\VOC2007', '000007'),...]
+                self.ids.append((rootpath, line.strip()))
 
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
@@ -168,7 +156,6 @@ class VOCDetection(data.Dataset):
             # 下面这句就是把 boxes 和 labels 又搞成 [[xmin, ymin, xmax, ymax, label_ind], ... ] 格式
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
         return torch.from_numpy(img).permute(2, 0, 1), target, height, width  # hwc -> chw
-        # return torch.from_numpy(img), target, height, width
 
     def pull_image(self, index):
         """Returns the original image object at index in PIL form
