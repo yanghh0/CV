@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils import data
 from data.voc0712 import VOCDetection, VOC_CLASSES
 
-VOC_ROOT = osp.join("..", "VOCdevkit")
+VOC_ROOT = osp.join("..", "..", "VOCdevkit")
 
 data_set = VOCDetection(VOC_ROOT)
 data_loader = data.DataLoader(data_set, batch_size=1, num_workers=0, shuffle=True)
@@ -25,6 +25,8 @@ ind_to_class = {v: k for k, v in class_to_ind.items()}
 for datas in data_loader:
     img, target = datas
     img = img.squeeze(0).permute(1, 2, 0).numpy().astype(np.uint8)  # 因为 batch_size=1，squeezequ去掉第0个维度
+    # 做了一个copy居然能解决TypeError: Expected Ptr<cv::UMat> for argument 'img', 可能是由于permute产生的布局不同
+    img = img.copy()
 
     h, w, c = img.shape
     print('h=%d, w=%d, c=%d' % (h, w, c))
@@ -37,7 +39,7 @@ for datas in data_loader:
     target[:, 3] *= float(h)
 
     target = np.int0(target)
-    img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)   # RGB to BGR
+
     # 画出图中类别名称
     for i in range(target.shape[0]):
         # 画矩形框
