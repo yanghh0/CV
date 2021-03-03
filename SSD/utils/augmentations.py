@@ -7,9 +7,8 @@ from numpy import random
 
 
 def intersect(box_a, box_b):
-    # eg. np.minimum([2, 3, 4], [1, 5, 2]) -> [1, 3, 2]
-    max_xy = np.minimum(box_a[:, 2:], box_b[2:])
-    min_xy = np.maximum(box_a[:, :2], box_b[:2])
+    max_xy = np.minimum(box_a[:, 2:], box_b[2:])   # 广播
+    min_xy = np.maximum(box_a[:, :2], box_b[:2])   # 广播
     inter = np.clip((max_xy - min_xy), a_min=0, a_max=np.inf)
     return inter[:, 0] * inter[:, 1]  # 返回一个列表，每个元素是矩形相交区域面积
 
@@ -297,14 +296,14 @@ class RandomSampleCrop(object):
                 if overlap.min() < min_iou and max_iou < overlap.max():
                     continue
 
-                # cut the crop from the image
+                # cut the crop from the image(hwc)
                 current_image = current_image[rect[1]:rect[3], rect[0]:rect[2], :]
 
                 # keep overlap with gt box IF center in sampled patch
                 centers = (boxes[:, :2] + boxes[:, 2:]) / 2.0
 
                 # mask in all gt boxes that above and to the left of centers
-                # 这个地方的原理是判断每个GT的中心坐标是否在裁剪框Rect里面，
+                # 这个地方的原理是判断每个gt的中心坐标是否在裁剪框Rect里面，
                 # 如果超出了那么下面的mask就全为0，那么mask.any()返回false，
                 # 也即是说这次裁剪失败了。
                 m1 = (rect[0] < centers[:, 0]) * (rect[1] < centers[:, 1])
