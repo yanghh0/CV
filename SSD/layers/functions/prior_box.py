@@ -14,11 +14,11 @@ class PriorBox(object):
         # number of priors for feature map location (either 4 or 6)
         self.num_priors = len(cfg['aspect_ratios'])
         self.variance = cfg['variance'] or [0.1]
-        self.feature_maps = cfg['feature_maps']       # [38, 19, 10, 5, 3, 1]
-        self.min_sizes = cfg['min_sizes']             # [30, 60, 111, 162, 213, 264]
-        self.max_sizes = cfg['max_sizes']             # [60, 111, 162, 213, 264, 315]
-        self.steps = cfg['steps']                     # [8, 16, 32, 64, 100, 300] 各特征图相对于原图的缩放比例
-        self.aspect_ratios = cfg['aspect_ratios']     # [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+        self.feature_maps = cfg['feature_maps']
+        self.min_sizes = cfg['min_sizes']
+        self.max_sizes = cfg['max_sizes']
+        self.steps = cfg['steps']
+        self.aspect_ratios = cfg['aspect_ratios']
         self.clip = cfg['clip']
         self.version = cfg['name']
         for v in self.variance:
@@ -28,12 +28,11 @@ class PriorBox(object):
     # 生成所有的PriorBox，需要每一个特征图的信息
     def forward(self):
         mean = []
-        # 模拟每个特征图上的坐标
-        for k, f in enumerate(self.feature_maps):   #  'feature_maps': [38, 19, 10, 5, 3, 1]
+        for k, f in enumerate(self.feature_maps):   # 一共6个特征图: [38, 19, 10, 5, 3, 1]
+            # 遍历每个特征图上的所有坐标
             for i, j in product(range(f), repeat=2):
-                f_k = self.image_size / self.steps[k]
+                f_k = self.image_size / self.steps[k]   # 'steps': [8, 16, 32, 64, 100, 300]
 
-                # 求每个box的中心坐标  将中心点坐标转化为 相对于 特征图的 相对坐标 （0，1）
                 cx = (j + 0.5) / f_k
                 cy = (i + 0.5) / f_k
 
@@ -44,7 +43,7 @@ class PriorBox(object):
 
                 # aspect_ratio: 1
                 # rel size: sqrt(s_k * s_(k+1))
-                s_k_prime = sqrt(s_k * (self.max_sizes[k]/self.image_size))
+                s_k_prime = sqrt(s_k * (self.max_sizes[k] / self.image_size))
                 mean += [cx, cy, s_k_prime, s_k_prime]
 
                 # rest of aspect ratios
