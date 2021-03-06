@@ -134,7 +134,7 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     # 每一个 prior 对应的类别
     conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
 
-    # 如果一个 Prior Box 对应的最大 IoU 小于0.5，则视为负样本，背景类的误差不需要去拟合
+    # 如果一个 Prior Box 对应的最大 IoU 小于0.5，则视为负样本，背景类的位置误差不需要去拟合
     conf[best_truth_overlap < threshold] = 0  # label as background
 
     # 得到位置误差
