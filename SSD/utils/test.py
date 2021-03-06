@@ -8,7 +8,7 @@ import cv2
 from matplotlib import pyplot as plt
 import utils.augmentations as aug
 
-imgFile = os.path.join("..", "data", "example.jpg")
+imgFile = os.path.join("..", "..", "data", "example.jpg")
 
 def image_compare(filePath, transform):
     """
