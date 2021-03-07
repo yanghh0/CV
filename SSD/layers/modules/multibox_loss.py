@@ -106,7 +106,7 @@ class MultiBoxLoss(nn.Module):
         loc_t = loc_t[pos_idx].view(-1, 4)
 
         # 所有正样本的定位损失
-        loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
+        loss_l = F.smooth_l1_loss(loc_p, loc_t, reduction='sum')
 
         #===========================================================================
         # 对于类别损失，进行难样本挖掘，一张图片正负样本的比例控制为1:3
@@ -145,7 +145,7 @@ class MultiBoxLoss(nn.Module):
         # shape: (一个 batch 正样本数量 + 负样本数量)
         targets_weighted = conf_t[(pos + neg).gt(0)]
 
-        loss_c = F.cross_entropy(conf_p, targets_weighted, size_average=False)
+        loss_c = F.cross_entropy(conf_p, targets_weighted, reduction='sum')
 
         N = num_pos.data.sum().type('torch.cuda.FloatTensor')
         loss_l /= N
