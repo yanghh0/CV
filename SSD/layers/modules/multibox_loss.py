@@ -96,13 +96,13 @@ class MultiBoxLoss(nn.Module):
         pos = conf_t > 0                        # shape: (batch_size, 8732)
         num_pos = pos.sum(dim=1, keepdim=True)  # shape: (batch_size, 1)
 
-        # Shape: [batch_size, 8732, 4] 正样本的索引
+        # 拓展为 Shape: [batch_size, 8732, 4]
         pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
 
-        # 正样本的定位误差预测值 shape: (一个 batch 的正样本数量, 4)
+        # 正样本的预测位置误差 shape: (一个 batch 的正样本数量, 4)
         loc_p = loc_data[pos_idx].view(-1, 4)
 
-        # 正样本的定位误差真实值 shape: (一个 batch 的正样本数量, 4)
+        # 正样本的真实位置误差 shape: (一个 batch 的正样本数量, 4)
         loc_t = loc_t[pos_idx].view(-1, 4)
 
         # 所有正样本的定位损失
@@ -113,29 +113,30 @@ class MultiBoxLoss(nn.Module):
         #===========================================================================
 
         # Compute max conf across batch for hard negative mining
-        batch_conf = conf_data.view(-1, self.num_classes)  # shape: (batch_size * num_priors, num_classes)
+        batch_conf = conf_data.view(-1, self.num_classes)  # shape: (batch_size * 8732, 21)
 
-        # 计算类别损失.每一个的log(sum(exp(21个的预测))) - 对应的真正预测值
-        # shape: (batch_size * num_priors, 1)
+        # 只计算对应正确类别的置信度，并乘了一个负号，本来是找小的，现在变成找大的。
+        # shape: (batch_size * 8732, 1)
         loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
 
         # Hard Negative Mining
-        loss_c = loss_c.view(num, -1)   # shape (batch_size, num_priors)
+        loss_c = loss_c.view(num, -1)   # shape (batch_size, 8732)
         loss_c[pos] = 0                 # 过滤掉正样本
 
-        _, loss_idx = loss_c.sort(1, descending=True)
-        _, idx_rank = loss_idx.sort(1)
-        num_pos = pos.long().sum(1, keepdim=True)   # shape: (batch_size, 1)
+        _, loss_idx = loss_c.sort(1, descending=True)    # 将每个框正确类别的置信度降序排列
+        _, idx_rank = loss_idx.sort(1)                   # 获取每个图片 8732 个框置信度(取了相反数的)排名
+        num_pos = pos.long().sum(1, keepdim=True)        # shape: (batch_size, 1)
 
         num_neg = torch.clamp(self.negpos_ratio * num_pos, max=pos.size(1) - 1)
-        neg = idx_rank < num_neg.expand_as(idx_rank) # shape (batch_size, num_priors)
+        # 提取排名在前面的负样本，返回一个索引的 tensor
+        neg = idx_rank < num_neg.expand_as(idx_rank) # shape (batch_size, 8732)
 
         #===========================================================================
         # 计算正负样本的类别损失
         #===========================================================================
 
         # Confidence Loss Including Positive and Negative Examples
-        # 都扩展为[batch_size, 8732, 21]
+        # 索引数组都扩展为[batch_size, 8732, 21]
         pos_idx = pos.unsqueeze(2).expand_as(conf_data)
         neg_idx = neg.unsqueeze(2).expand_as(conf_data)
 
