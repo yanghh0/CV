@@ -1,6 +1,6 @@
-from .voc0712 import VOCDetection, VOCAnnotationTransform, VOC_CLASSES, VOC_ROOT
+from data.voc0712 import VOCDetection, VOCAnnotationTransform, VOC_CLASSES
 
-from .config import *
+from data.config import *
 import torch
 import cv2
 import numpy as np
