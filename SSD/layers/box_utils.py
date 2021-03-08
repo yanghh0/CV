@@ -228,7 +228,7 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
     y2 = boxes[:, 3]
     area = torch.mul(x2 - x1, y2 - y1)
 
-    # 将所有框的得分排序，选中最高分的 top_k 个框
+    # 将所有框对相同类别的置信度排序，选中最高分的 top_k 个框
     v, idx = scores.sort(0)  # sort in ascending order
     idx = idx[-top_k:]       # indices of the top-k largest vals
     xx1 = boxes.new()
