@@ -181,8 +181,8 @@ def train():
 
         if iteration != 0 and iteration % 5000 == 0:
             print('Saving state, iter:', iteration)
-            torch.save(ssd_net.state_dict(), os.path.join("weights", "ssd300_VOC_", repr(iteration), '.pth'))
-    torch.save(ssd_net.state_dict(), os.path.join(args.save_folder, args.dataset, '.pth'))
+            torch.save(ssd_net.state_dict(), os.path.join("weights", "ssd300_VOC_" + repr(iteration) + '.pth'))
+    torch.save(ssd_net.state_dict(), os.path.join("weights", "ssd300_VOC_" + '.pth'))
 
 
 def adjust_learning_rate(optimizer, gamma, step):
