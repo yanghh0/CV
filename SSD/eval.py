@@ -8,8 +8,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
-from data import VOC_ROOT, VOCAnnotationTransform, VOCDetection, BaseTransform
+from data import VOCAnnotationTransform, VOCDetection, BaseTransform
 from data import VOC_CLASSES as labelmap
 import torch.utils.data as data
 
@@ -28,17 +27,17 @@ if sys.version_info[0] == 2:
 else:
     import xml.etree.ElementTree as ET
 
+VOC_ROOT = os.path.join("..", "VOCdevkit")
+
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
-
-parser = argparse.ArgumentParser(
-    description='Single Shot MultiBox Detector Evaluation')
+parser = argparse.ArgumentParser(description='Single Shot MultiBox Detector Evaluation')
 parser.add_argument('--trained_model',
-                    default='weights/ssd300_mAP_77.43_v2.pth', type=str,
+                    default=os.path.join('weights', 'ssd300_VOC' + '.pth'), type=str,
                     help='Trained state_dict file path to open')
-parser.add_argument('--save_folder', default='eval/', type=str,
+parser.add_argument('--save_folder', default='eval', type=str,
                     help='File path to save results')
 parser.add_argument('--confidence_threshold', default=0.01, type=float,
                     help='Detection confidence threshold')
@@ -67,14 +66,13 @@ else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
 annopath = os.path.join(args.voc_root, 'VOC2007', 'Annotations', '%s.xml')
-imgpath = os.path.join(args.voc_root, 'VOC2007', 'JPEGImages', '%s.jpg')
-imgsetpath = os.path.join(args.voc_root, 'VOC2007', 'ImageSets',
-                          'Main', '{:s}.txt')
+imgpath = os.path.join(args.voc_root, 'VOC2007', 'JPEGImages', '{0}.jpg')
+imgsetpath = os.path.join(args.voc_root, 'VOC2007', 'ImageSets', 'Main', '{0}.txt')
 YEAR = '2007'
-devkit_path = args.voc_root + 'VOC' + YEAR
+
+devkit_path = os.path.join(args.voc_root, 'VOC2007')
 dataset_mean = (104, 117, 123)
 set_type = 'test'
-
 
 class Timer(object):
     """A simple timer."""
@@ -149,11 +147,12 @@ def write_voc_results_file(all_boxes, dataset):
         filename = get_voc_results_file_template(set_type, cls)
         with open(filename, 'wt') as f:
             for im_ind, index in enumerate(dataset.ids):
-                dets = all_boxes[cls_ind+1][im_ind]
+                dets = all_boxes[cls_ind + 1][im_ind]
                 if dets == []:
                     continue
                 # the VOCdevkit expects 1-based indices
                 for k in range(dets.shape[0]):
+                    # id, confidence, xmin, ymin, xmax, ymax
                     f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.
                             format(index[1], dets[k, -1],
                                    dets[k, 0] + 1, dets[k, 1] + 1,
@@ -166,13 +165,19 @@ def do_python_eval(output_dir='output', use_07=True):
     # The PASCAL VOC metric changed in 2010
     use_07_metric = use_07
     print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
+
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
+
     for i, cls in enumerate(labelmap):
         filename = get_voc_results_file_template(set_type, cls)
-        rec, prec, ap = voc_eval(
-           filename, annopath, imgsetpath.format(set_type), cls, cachedir,
-           ovthresh=0.5, use_07_metric=use_07_metric)
+        rec, prec, ap = voc_eval(filename, 
+                                 annopath, 
+                                 imgsetpath.format(set_type), 
+                                 cls, 
+                                 cachedir,
+                                 ovthresh=0.5, 
+                                 use_07_metric=use_07_metric)
         aps += [ap]
         print('AP for {} = {:.4f}'.format(cls, ap))
         with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
@@ -223,7 +228,7 @@ def voc_ap(rec, prec, use_07_metric=True):
         # and sum (\Delta recall) * prec
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
-
+    
 
 def voc_eval(detpath,
              annopath,
@@ -258,18 +263,20 @@ cachedir: Directory for caching the annotations
     if not os.path.isdir(cachedir):
         os.mkdir(cachedir)
     cachefile = os.path.join(cachedir, 'annots.pkl')
+
     # read list of images
+    print(imagesetfile)
     with open(imagesetfile, 'r') as f:
         lines = f.readlines()
     imagenames = [x.strip() for x in lines]
+
     if not os.path.isfile(cachefile):
         # load annots
         recs = {}
         for i, imagename in enumerate(imagenames):
             recs[imagename] = parse_rec(annopath % (imagename))
             if i % 100 == 0:
-                print('Reading annotation for {:d}/{:d}'.format(
-                   i + 1, len(imagenames)))
+                print('Reading annotation for {:d}/{:d}'.format(i + 1, len(imagenames)))
         # save
         print('Saving cached annotations to {:s}'.format(cachefile))
         with open(cachefile, 'wb') as f:
@@ -282,6 +289,7 @@ cachedir: Directory for caching the annotations
     # extract gt objects for this class
     class_recs = {}
     npos = 0
+
     for imagename in imagenames:
         R = [obj for obj in recs[imagename] if obj['name'] == classname]
         bbox = np.array([x['bbox'] for x in R])
@@ -296,14 +304,15 @@ cachedir: Directory for caching the annotations
     detfile = detpath.format(classname)
     with open(detfile, 'r') as f:
         lines = f.readlines()
-    if any(lines) == 1:
 
+    if any(lines) == 1:
         splitlines = [x.strip().split(' ') for x in lines]
         image_ids = [x[0] for x in splitlines]
         confidence = np.array([float(x[1]) for x in splitlines])
         BB = np.array([[float(z) for z in x[2:]] for x in splitlines])
 
         # sort by confidence
+        # 从大到小排列
         sorted_ind = np.argsort(-confidence)
         sorted_scores = np.sort(-confidence)
         BB = BB[sorted_ind, :]
@@ -313,11 +322,13 @@ cachedir: Directory for caching the annotations
         nd = len(image_ids)
         tp = np.zeros(nd)
         fp = np.zeros(nd)
+
         for d in range(nd):
-            R = class_recs[image_ids[d]]
-            bb = BB[d, :].astype(float)
+            R = class_recs[image_ids[d]]   # 正确的信息
+            bb = BB[d, :].astype(float)    # 网络的预测信息
             ovmax = -np.inf
             BBGT = R['bbox'].astype(float)
+
             if BBGT.size > 0:
                 # compute overlaps
                 # intersection
@@ -361,14 +372,11 @@ cachedir: Directory for caching the annotations
     return rec, prec, ap
 
 
-def test_net(save_folder, net, cuda, dataset, transform, top_k,
-             im_size=300, thresh=0.05):
+def test_net(save_folder, net, cuda, dataset, transform, top_k, im_size=300, thresh=0.05):
     num_images = len(dataset)
     # all detections are collected into:
-    #    all_boxes[cls][image] = N x 5 array of detections in
-    #    (x1, y1, x2, y2, score)
-    all_boxes = [[[] for _ in range(num_images)]
-                 for _ in range(len(labelmap)+1)]
+    #    all_boxes[cls][image] = N x 5 array of detections in (x1, y1, x2, y2, score)
+    all_boxes = [[[] for _ in range(num_images)] for _ in range(len(labelmap) + 1)]
 
     # timers
     _t = {'im_detect': Timer(), 'misc': Timer()}
@@ -378,7 +386,7 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
     for i in range(num_images):
         im, gt, h, w = dataset.pull_item(i)
 
-        x = Variable(im.unsqueeze(0))
+        x = im.unsqueeze(0)
         if args.cuda:
             x = x.cuda()
         _t['im_detect'].tic()
@@ -398,13 +406,10 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
             boxes[:, 1] *= h
             boxes[:, 3] *= h
             scores = dets[:, 0].cpu().numpy()
-            cls_dets = np.hstack((boxes.cpu().numpy(),
-                                  scores[:, np.newaxis])).astype(np.float32,
-                                                                 copy=False)
+            cls_dets = np.hstack((boxes.cpu().numpy(), scores[:, np.newaxis])).astype(np.float32, copy=False)
             all_boxes[j][i] = cls_dets
 
-        print('im_detect: {:d}/{:d} {:.3f}s'.format(i + 1,
-                                                    num_images, detect_time))
+        print('im_detect: {:d}/{:d} {:.3f}s'.format(i + 1, num_images, detect_time))
 
     with open(det_file, 'wb') as f:
         pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
