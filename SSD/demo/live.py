@@ -16,9 +16,12 @@ args = parser.parse_args()
 
 COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+stream = None
 
 
 def cv2_demo(net, transform):
+    global stream
+
     def predict(frame):
         height, width = frame.shape[:2]
         x = torch.from_numpy(transform(frame)[0]).permute(2, 0, 1)
