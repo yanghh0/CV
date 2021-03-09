@@ -3,11 +3,12 @@ import torch
 from torch.autograd import Variable
 import cv2
 import time
+import os
 from imutils.video import FPS, WebcamVideoStream
 import argparse
 
 parser = argparse.ArgumentParser(description='Single Shot MultiBox Detection')
-parser.add_argument('--weights', default='weights/ssd_300_VOC0712.pth',
+parser.add_argument('--weights', default=os.path.join('..', 'weights', 'ssd300_VOC' + '.pth'),
                     type=str, help='Trained state_dict file path')
 parser.add_argument('--cuda', default=False, type=bool,
                     help='Use cuda in live demo')
@@ -33,9 +34,16 @@ def cv2_demo(net, transform):
                 cv2.rectangle(frame,
                               (int(pt[0]), int(pt[1])),
                               (int(pt[2]), int(pt[3])),
-                              COLORS[i % 3], 2)
-                cv2.putText(frame, labelmap[i - 1], (int(pt[0]), int(pt[1])),
-                            FONT, 2, (255, 255, 255), 2, cv2.LINE_AA)
+                              COLORS[i % 3],
+                              2)
+                cv2.putText(frame,
+                            labelmap[i - 1],
+                            (int(pt[0]), int(pt[1])),
+                            FONT,
+                            2,
+                            (255, 255, 255),
+                            2,
+                            cv2.LINE_AA)
                 j += 1
         return frame
 
